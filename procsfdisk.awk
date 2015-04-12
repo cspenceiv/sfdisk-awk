@@ -4,15 +4,27 @@
 
 #cat $data | awk -F, '\
 
+
 function display_output(partition_names, partitions) {
 	printf("unit: %s\n\n", unit);
 	for(part_name in partition_names) {
-		printf("%s : start=%9d, size=%9d, type= %2s",	partitions[part_name, "device"], partitions[part_name, "start"], partitions[part_name, "size"], partitions[part_name, "type"]);
-		if(partitions[part_name, "flags"] != "") {
-			printf("%s\n", partitions[part_name, "flags"]);
-		} else {
-			printf("\n");
+		printf("%s : start=%10d, size=%10d, type= %2s", partitions[part_name, "device"], partitions[part_name, "start"], partitions[part_name, "size"], partitions[part_name, "type"]);
+		if(label == "dos") {
+			if(partitions[part_name, "flags"] != "") {
+				printf("%s", partitions[part_name, "flags"]);
+			}
+		} else if (label == "gpt") {
+			if(partitions[part_name, "uuid"] != "") {
+				printf(", uuid=%s", partitions[part_name, "uuid"]);
+			}
+			if(partitions[part_name, "name"] != "") {
+				printf(", name=%s", partitions[part_name, "name"]);
+			}
+			if(partitions[part_name, "attrs"] != "") {
+				printf(", attrs=%s", partitions[part_name, "attrs"]);
+			}
 		}
+		printf("\n");
 	}
 }
 
