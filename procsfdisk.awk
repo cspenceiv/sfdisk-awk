@@ -4,31 +4,31 @@
 
 #cat $data | awk -F, '\
 
-function display_output(partition_names, partitions, part_device) {
+function display_output(partition_names, partitions, part_name) {
 	printf("unit: %s\n\n", unit);
-	for(part_device in partition_names) {
-		printf("%s : start=%9d, size=%9d, Id= %2s",	partitions[part_device, "device"], partitions[part_device, "start"], partitions[part_device, "size"], partitions[part_device, "id"]);
-		if(partitions[part_device, "flags"] != "") {
-			printf(", %s\n", partitions[part_device, "flags"]);
+	for(part_name in partition_names) {
+		printf("%s : start=%9d, size=%9d, type= %2s",	partitions[part_name, "device"], partitions[part_name, "start"], partitions[part_name, "size"], partitions[part_name, "type"]);
+		if(partitions[part_name, "flags"] != "") {
+			printf("%s\n", partitions[part_name, "flags"]);
 		} else {
 			printf("\n");
 		}
 	}
 }
 
-function check_overlap(partition_names, partitions, new_part_device, new_start, new_size, extended_margin, new_type, new_part_number, part_device, p_type, p_start, p_size, p_part_number) {
+function check_overlap(partition_names, partitions, new_part_name, new_start, new_size, extended_margin, new_type, new_part_number, part_name, p_type, p_start, p_size, p_part_number) {
 	extended_margin = 2;
-	new_type = partitions[new_part_device, "id"];
+	new_type = partitions[new_part_name, "type"];
 	new_start = new_start + 0;
 	new_size = new_size + 0;
-	new_part_number = partitions[new_part_device, "number"] + 0;
-	for(part_device in partition_names) {
-		p_type = partitions[part_device, "id"];
-		p_start = partitions[part_device, "start"] + 0;
-		p_size = partitions[part_device, "size"] + 0;
-		p_part_number = partitions[part_device, "number"] + 0;
+	new_part_number = partitions[new_part_name, "number"] + 0;
+	for(part_name in partition_names) {
+		p_type = partitions[part_name, "type"];
+		p_start = partitions[part_name, "start"] + 0;
+		p_size = partitions[part_name, "size"] + 0;
+		p_part_number = partitions[part_name, "number"] + 0;
 		# no overlap with self
-		if(new_part_device == part_device) { continue; }
+		if(new_part_name == part_name) { continue; }
 		# ignore empty partitions
 		if(p_size == 0) { continue; }
 		# extended partitions must overlap logical partitions, but leave room for the extended partition table
@@ -65,20 +65,20 @@ function check_overlap(partition_names, partitions, new_part_device, new_start, 
 	return 0;
 }
 
-function check_all_partitions(partition_names, partitions, part_device, p_start, p_size) {
-	for(part_device in partition_names) {
-		p_start = partitions[part_device, "start"] + 0;
-		p_size = partitions[part_device, "size"] + 0;
-		if(check_overlap(partition_names, partitions, part_device, p_start, p_size) != 0) {
+function check_all_partitions(partition_names, partitions, part_name, p_start, p_size) {
+	for(part_name in partition_names) {
+		p_start = partitions[part_name, "start"] + 0;
+		p_size = partitions[part_name, "size"] + 0;
+		if(check_overlap(partition_names, partitions, part_name, p_start, p_size) != 0) {
 			printf("ERROR in new partition table, quitting.\n");
-			printf("ERROR: %s has an overlap.\n", part_device);
+			printf("ERROR: %s has an overlap.\n", part_name);
 			#exit(1);
 		}
 	}
 	printf("# Partition table is consistent.\n");
 }
 
-function resize_partition(partition_names, partitions, args, unit, part_device, new_start, new_size) {
+function resize_partition(partition_names, partitions, args, unit, part_name, new_start, new_size) {
 	for(part in partition_names) {
 		if(part == args[1]) {
 			if(unit == "sectors") {
@@ -93,14 +93,14 @@ function resize_partition(partition_names, partitions, args, unit, part_device, 
 	}
 }
 
-function move_partition(partition_names, partitions, args, unit, part_device, new_start, new_size) {
-	for(part_device in partition_names) {
-		if(part_device == args[1]) {
+function move_partition(partition_names, partitions, args, unit, part_name, new_start, new_size) {
+	for(part_name in partition_names) {
+		if(part_name == args[1]) {
 			if(unit == "sectors") {
 				new_start = (args[2]*2);
 				new_start = new_start - new_start % CHUNK_SIZE;
 				if(new_start < MIN_START) { new_start = MIN_START; }
-				new_size = partitions[part_device, "size"];
+				new_size = partitions[part_name, "size"];
 				if(check_overlap(partition_names, partitions, args[1], new_start, new_size) == 0) {
 					partitions[args[1], "start"] = new_start;
 					partitions[args[1], "size"] = new_size;
@@ -110,7 +110,7 @@ function move_partition(partition_names, partitions, args, unit, part_device, ne
 	}
 }
 
-function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, fixed_partitions, original_variable, original_fixed, new_variable, new_fixed, new_logical, part_device, p_type, p_number, p_size, found, i,	partition_starts, ordered_starts, old_sorted_in, curr_start) {
+function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, fixed_partitions, original_variable, original_fixed, new_variable, new_fixed, new_logical, part_name, p_type, p_number, p_size, found, i,	partition_starts, ordered_starts, old_sorted_in, curr_start) {
 	# processSfdisk foo.sfdisk filldisk /dev/sda 100000 1:3:6
 	#	foo.sfdisk = sfdisk -d output
 	#	filldisk = action
@@ -120,9 +120,9 @@ function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, 
 	disk = args[1];
 	disk_size = args[2]*2;
 	# add swap partitions to the fixed list
-	for(part_device in partition_names) {
-		p_type = partitions[part_device, "id"];
-		p_number = partitions[part_device, "number"] + "";
+	for(part_name in partition_names) {
+		p_type = partitions[part_name, "type"];
+		p_number = partitions[part_name, "number"] + "";
 		if(p_type == "82") {
 			args[3] = args[3] ":" p_number;
 		}
@@ -133,22 +133,22 @@ function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, 
 	#
 	original_variable = 0;
 	original_fixed	= MIN_START;
-	for(part_device in partition_names) {
-		p_type = partitions[part_device, "id"];
-		p_number = partitions[part_device, "number"] + 0;
-		p_size = partitions[part_device, "size"] + 0;
-		partition_starts[partitions[part_device, "start"] + 0] = part_device;
+	for(part_name in partition_names) {
+		p_type = partitions[part_name, "type"];
+		p_number = partitions[part_name, "number"] + 0;
+		p_size = partitions[part_name, "size"] + 0;
+		partition_starts[partitions[part_name, "start"] + 0] = part_name;
 		# skip extended partition, only count its logicals and the CHUNK for its partition table
 		if(p_type == "5" || p_type == "f") {
 			original_fixed += CHUNK_SIZE;
 			continue;
 		}
-		if(p_size == 0) { fixed_partitions[part_device] = p_number; };
+		if(p_size == 0) { fixed_partitions[part_name] = p_number; };
 		found = 0; for(i in fixed_partitions) { if(fixed_partitions[i] == p_number) { found = 1; } };
 		if(found) {
-			original_fixed += partitions[part_device, "size"];
+			original_fixed += partitions[part_name, "size"];
 		} else {
-			original_variable += partitions[part_device, "size"];
+			original_variable += partitions[part_name, "size"];
 		}
 	}
 	#
@@ -157,33 +157,33 @@ function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, 
 	new_fixed = original_fixed;
 	new_variable = disk_size - original_fixed;
 	new_logical = 0;
-	for(part_device in partition_names) {
-		p_type = partitions[part_device, "id"];
-		p_number = partitions[part_device, "number"] + 0;
-		p_size = partitions[part_device, "size"] + 0;
+	for(part_name in partition_names) {
+		p_type = partitions[part_name, "type"];
+		p_number = partitions[part_name, "number"] + 0;
+		p_size = partitions[part_name, "size"] + 0;
 		found = 0; for(i in fixed_partitions) { if(fixed_partitions[i] == p_number) { found = 1; } };
 		if(p_type == "5" || p_type == "f") {
-			partitions[part_device, "newsize"] = CHUNK_SIZE;
+			partitions[part_name, "newsize"] = CHUNK_SIZE;
 		} else if(found) {
-			partitions[part_device, "newsize"] = p_size;
+			partitions[part_name, "newsize"] = p_size;
 		} else {
-			partitions[part_device, "newsize"] = (new_variable*p_size/original_variable);
+			partitions[part_name, "newsize"] = (new_variable*p_size/original_variable);
 		}
-		partitions[part_device, "size"] = partitions[part_device, "newsize"] - partitions[part_device, "newsize"] % CHUNK_SIZE;
+		partitions[part_name, "size"] = partitions[part_name, "newsize"] - partitions[part_name, "newsize"] % CHUNK_SIZE;
 		if(p_number >= 5) {
-			new_logical += partitions[part_device, "size"];
+			new_logical += partitions[part_name, "size"];
 		}
 	}
 	#
 	# Assign the new size to the extended partition
 	#
-	for(part_device in partition_names) {
-		p_type = partitions[part_device, "id"];
-		p_number = partitions[part_device, "number"] + 0;
-		p_size = partitions[part_device, "size"] + 0;
+	for(part_name in partition_names) {
+		p_type = partitions[part_name, "type"];
+		p_number = partitions[part_name, "number"] + 0;
+		p_size = partitions[part_name, "size"] + 0;
 		if(p_type == "5" || p_type == "f") {
-			partitions[part_device, "newsize"] += new_logical;
-			partitions[part_device, "size"] = partitions[part_device, "newsize"] - partitions[part_device, "newsize"] % CHUNK_SIZE;
+			partitions[part_name, "newsize"] += new_logical;
+			partitions[part_name, "size"] = partitions[part_name, "newsize"] - partitions[part_name, "newsize"] % CHUNK_SIZE;
 		}
 	}
 	#
@@ -194,11 +194,11 @@ function fill_disk(partition_names, partitions, args, unit,	disk, disk_size, n, 
 	PROCINFO["sorted_in"] = "@ind_num_asc";
 	curr_start = MIN_START;
 	for(i in ordered_starts) {
-		part_device = ordered_starts[i];
-		p_type = partitions[part_device, "id"];
-		p_size = partitions[part_device, "size"] + 0;
+		part_name = ordered_starts[i];
+		p_type = partitions[part_name, "type"];
+		p_size = partitions[part_name, "size"] + 0;
 		if(p_size > 0) {
-			partitions[part_device, "start"] = curr_start;
+			partitions[part_name, "start"] = curr_start;
 		}
 		if(p_type == "5" || p_type == "f") {
 			curr_start += CHUNK_SIZE;
@@ -220,12 +220,15 @@ BEGIN{
 	args[1]=p1;
 	args[2]=p2;
 	args[3]=p3;
+	label = "";
 	unit = "";
 	partitions[0] = "";
 	partition_names[0] = "";
 	CHUNK_SIZE = p4;
 	MIN_START = p5;
 }
+
+/^label:/{ label = $2 }
 
 /^unit:/{ unit = $2; }
 
@@ -234,8 +237,9 @@ BEGIN{
 	part_name=$1
 	partitions[part_name, "device"] = part_name
 	partition_names[part_name] = part_name
-
+	
 	# Isolate Partition Number
+	# TODO Fix for mmcblk0p3
 	part_number = gensub(/^[^0-9]*/,"",1,part_name)
 	partitions[part_name, "number"] = part_number
 
@@ -251,19 +255,30 @@ BEGIN{
 	# Get type/id value
 	gsub(/.*type= */, "", fields[3])
 	#partitions[part_name, "type"] = fields[3]
-	partitions[part_name, "id"] = fields[3]
-	# Get uuid value
-#   gsub(/.*uuid= */, "", fields[4])
-#   print fields[4]
-	# Get name value
-#   gsub(/.*name= */, "", fields[5])
-#   print fields[5]
-	# Get attrs value
-#   if (fields[6])
-#   {   
-#       gsub(/.*attrs= */, "", fields[6])
-#       print fields[6]
-#   }
+	partitions[part_name, "type"] = fields[3]
+	
+	if ( label == "dos" )
+	{
+		split($0, typeList, "type=")
+		part_flags = gensub(/^[^\,$]*/, "",1,typeList[2])
+		partitions[part_name, "flags"] = part_flags;
+	}
+	# GPT elements
+	else if ( label == "gpt" )
+	{
+		# Get uuid value
+		gsub(/.*uuid= */, "", fields[4])
+		partitions[part_name, "uuid"] = fields[4]
+		# Get name value
+		gsub(/.*name= */, "", fields[5])
+		partitions[part_name, "name"] = fields[5]
+		# Get attrs value
+		if (fields[6])
+		{   
+			gsub(/.*attrs= */, "", fields[6])
+			partitions[part_name, "attrs"] = fields[6]
+		}
+	}
 }
 
 
