@@ -4,7 +4,7 @@
 
 #cat $data | awk -F, '\
 
-function display_output(partition_names, partitions, part_name) {
+function display_output(partition_names, partitions) {
 	printf("unit: %s\n\n", unit);
 	for(part_name in partition_names) {
 		printf("%s : start=%9d, size=%9d, type= %2s",	partitions[part_name, "device"], partitions[part_name, "start"], partitions[part_name, "size"], partitions[part_name, "type"]);
@@ -239,8 +239,10 @@ BEGIN{
 	partition_names[part_name] = part_name
 	
 	# Isolate Partition Number
-	# TODO Fix for mmcblk0p3
-	part_number = gensub(/^[^0-9]*/,"",1,part_name)
+	# The regex can handle devices like mmcblk0p3
+	part_number = gensub(/^[^0-9]*[0-9]*[^0-9]+/, "", 1, part_name)
+	#part_number = gensub(/^[^0-9]*/,"",1,part_name)
+	print "DEBUG [" part_number "]"
 	partitions[part_name, "number"] = part_number
 
 	# Separate attributes
@@ -263,7 +265,7 @@ BEGIN{
 		part_flags = gensub(/^[^\,$]*/, "",1,typeList[2])
 		partitions[part_name, "flags"] = part_flags;
 	}
-	# GPT elements
+	# GPT elements - TODO Add this to display output
 	else if ( label == "gpt" )
 	{
 		# Get uuid value
@@ -280,46 +282,6 @@ BEGIN{
 		}
 	}
 }
-
-
-#/start=/{
-#	n = split($0, fields, ":");
-#	print "DEBUG: [" fields[1] "]"
-#	n = split(fields[1], values, " ");
-#	print "DEBUG: [" values[1] "]"
-#	gsub(/ /, "", values[1]);
-	# part_device is the partition without spaces.
-#	part_device = values[1];
-	# TODO No reason to have the part_device stored here...
-#	partitions[part_device, "device"] = part_device;
-#	partition_names[part_device] = part_device;
-#
-#	part_number = gensub(/^[^0-9]*/,"",1,part_device);
-#	partitions[part_device, "number"] = part_number;
-
-#	n = split(fields[2], values, "=");
-#	gsub(/ /, "", values[2]);
-#	part_start = values[2];
-#	partitions[part_device, "start"] = part_start;
-
-#	n = split(action, values, "=");
-#	gsub(/ /, "", values[2]);
-#	part_size = values[2];
-#	partitions[part_device, "size"] = part_size;
-
-#	n = split(args[1], values, "=");
-#	gsub(/ /, "", values[2]);
-#	part_id = values[2];
-#	partitions[part_device, "id"] = part_id;
-
-#	if(NF > 3) {
-#		part_flags = args[2];
-#		gsub(/ /, "", part_flags);
-#	} else {
-#		part_flags = "";
-#	}
-#	partitions[part_device, "flags"] = part_flags;
-#}
 
 END{
 	delete partitions[0];
