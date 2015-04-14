@@ -55,5 +55,5 @@ if [ -n "$5" ]; then
 	awkArgs="${awkArgs} -v fixedList=$5"
 fi
 
-#TODO Find in respect to this function..
-./procsfdisk.awk $awkArgs $data
+# Process with external awk script
+/usr/share/fog/lib/procsfdisk.awk $awkArgs $data
