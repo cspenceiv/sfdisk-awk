@@ -98,13 +98,13 @@ function check_all_partitions(partition_names, partitions, \
 function resize_partition(partition_names, partitions, args, \
 		pName, new_start, new_size) {
 	for(pName in partition_names) {
-		if(pName == args[1]) {
+		if(pName == target) {
 			if(unit == "sectors") {
 				new_start =  partitions[pName, "start"];
-				new_size = args[2]*2;
-				if(check_overlap(partition_names, partitions, args[1], new_start, new_size) == 0) {
-					partitions[args[1], "start"] = new_start;
-					partitions[args[1], "size"] = new_size;
+				new_size = sizePos*2;
+				if(check_overlap(partition_names, partitions, target, new_start, new_size) == 0) {
+					partitions[target, "start"] = new_start;
+					partitions[target, "size"] = new_size;
 				}
 			}
 		}
@@ -114,15 +114,15 @@ function resize_partition(partition_names, partitions, args, \
 function move_partition(partition_names, partitions, args, \
 	   	pName, new_start, new_size) {
 	for(pName in partition_names) {
-		if(pName == args[1]) {
+		if(pName == target) {
 			if(unit == "sectors") {
-				new_start = (args[2]*2);
+				new_start = (sizePos*2);
 				new_start = new_start - new_start % CHUNK_SIZE;
 				if(new_start < MIN_START) { new_start = MIN_START; }
 				new_size = partitions[pName, "size"];
-				if(check_overlap(partition_names, partitions, args[1], new_start, new_size) == 0) {
-					partitions[args[1], "start"] = new_start;
-					partitions[args[1], "size"] = new_size;
+				if(check_overlap(partition_names, partitions, target, new_start, new_size) == 0) {
+					partitions[target, "start"] = new_start;
+					partitions[target, "size"] = new_size;
 				}
 			}
 		}
@@ -140,17 +140,17 @@ function fill_disk(partition_names, partitions, args, \
 	#	/dev/sda = disk to modify
 	#	100000 = 1024 byte blocks size of disk
 	#	1:3:6 = partition numbers that are fixed in size, : separated
-	disk = args[1];
-	disk_size = args[2]*2;
+	disk = target;
+	disk_size = sizePos*2;
 	# add swap partitions to the fixed list
 	for(pName in partition_names) {
 		p_type = partitions[pName, "type"];
 		p_number = partitions[pName, "number"] + "";
 		if(p_type == "82") {
-			args[3] = args[3] ":" p_number;
+			fixedList = fixedList ":" p_number;
 		}
 	}
-	n = split(args[3], fixed_partitions, ":");
+	n = split(fixedList, fixed_partitions, ":");
 	#
 	# Find the total fixed and variable space
 	#
@@ -239,16 +239,17 @@ function fill_disk(partition_names, partitions, args, \
 }
 
 BEGIN{
-	action=p0;
-	args[1]=p1;
-	args[2]=p2;
-	args[3]=p3;
+	#Arguments - Use "-v var=val" when calling this script
+	#CHUNK_SIZE;
+	#MIN_START;
+	#action;
+	#target;
+	#sizePos;
+	#fixedList;
 	label = "";
 	unit = "";
 	partitions[0] = "";
 	partition_names[0] = "";
-	CHUNK_SIZE = p4;
-	MIN_START = p5;
 }
 
 /^label:/{ label = $2 }
